@@ -11,6 +11,7 @@ const {
   deleteExpense,
   getUserExpenses,
   getExpenseComments,
+  createExpenseComment,
 } = require('../controllers/expense.controller');
 
 const router = express.Router();
@@ -31,6 +32,7 @@ router.get('/users/me/expenses', authMiddleware, getUserExpenses);
 // Individual expense routes
 router.patch('/expenses/:id/shares', authMiddleware, setExpenseShares);
 router.get('/expenses/:id/comments', authMiddleware, getExpenseComments);
+router.post('/expenses/:id/comments', authMiddleware, createExpenseComment);
 router.get('/expenses/:id', authMiddleware, getExpense);
 router.delete('/expenses/:id', authMiddleware, deleteExpense);
 

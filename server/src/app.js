@@ -11,6 +11,7 @@ const settlementRoutes = require('./routes/settlement.routes');
 const notificationRoutes = require('./routes/notification.routes');
 
 const app = express();
+app.set('trust proxy', 1);
 const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
 
 app.use(

@@ -40,7 +40,7 @@ export default function SplitMethodSelector({
     setSplitMethod(method);
     const cleared = {};
     participants.forEach((userId) => {
-      cleared[userId] = '';
+      cleared[userId] = method === 'SHARES' ? '1' : '';
     });
     setShares(cleared);
   };
@@ -86,6 +86,16 @@ export default function SplitMethodSelector({
     );
     remaining = 100 - totalAllocated;
     isValid = Math.abs(remaining) < 0.01 && numParticipants > 0 && parsedAmount > 0;
+  } else if (splitMethod === 'SHARES') {
+    totalAllocated = Object.values(shares).reduce(
+      (sum, val) => sum + (parseFloat(val) || 0),
+      0
+    );
+    remaining = 0;
+    const allPositive = Object.values(shares).every(
+      (val) => parseFloat(val) > 0
+    );
+    isValid = allPositive && numParticipants > 0 && parsedAmount > 0;
   }
 
   return (
@@ -93,7 +103,7 @@ export default function SplitMethodSelector({
       <div className="flex justify-between items-center">
         <label className="text-sm font-semibold text-slate-300">Split Method</label>
         <div className="flex bg-slate-900 p-0.5 rounded-lg border border-white/5">
-          {['EQUAL', 'EXACT', 'PERCENT'].map((method) => (
+          {['EQUAL', 'EXACT', 'PERCENT', 'SHARES'].map((method) => (
             <button
               key={method}
               type="button"
@@ -104,7 +114,7 @@ export default function SplitMethodSelector({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {method}
+              {method === 'SHARES' ? 'By Shares' : method}
             </button>
           ))}
         </div>
@@ -126,6 +136,14 @@ export default function SplitMethodSelector({
                 calculatedAmount = parseFloat(val) || 0;
               } else if (splitMethod === 'PERCENT') {
                 calculatedAmount = (parsedAmount * (parseFloat(val) || 0)) / 100;
+              } else if (splitMethod === 'SHARES') {
+                const totalShares = Object.values(shares).reduce(
+                  (sum, v) => sum + (parseFloat(v) || 0),
+                  0
+                );
+                calculatedAmount = totalShares > 0
+                  ? Math.floor(parsedAmount * (parseFloat(val) || 0) / totalShares)
+                  : 0;
               }
 
               return (
@@ -168,6 +186,23 @@ export default function SplitMethodSelector({
                             className="w-full bg-transparent focus:outline-none text-white text-xs font-bold text-right"
                           />
                           <span className="text-slate-500 text-xs ml-1 font-bold">%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {splitMethod === 'SHARES' && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] text-slate-500 font-bold">
+                          (${calculatedAmount.toFixed(2)})
+                        </span>
+                        <div className="flex items-center bg-slate-950 border border-white/5 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1 max-w-[80px]">
+                          <input
+                            type="text"
+                            value={val}
+                            onChange={(e) => handleShareChange(userId, e.target.value)}
+                            placeholder="1"
+                            className="w-full bg-transparent focus:outline-none text-white text-xs font-bold text-right"
+                          />
                         </div>
                       </div>
                     )}
@@ -230,6 +265,36 @@ export default function SplitMethodSelector({
                 )}
               </>
             )}
+
+            {splitMethod === 'SHARES' && (() => {
+              const allocatedSum = participants.reduce((sum, uid) => {
+                const sv = parseFloat(shares[uid]) || 0;
+                return sum + (totalAllocated > 0 ? Math.floor(parsedAmount * sv / totalAllocated) : 0);
+              }, 0);
+              const rem = parsedAmount - allocatedSum;
+              const totalSharesDisplay = Number.isInteger(totalAllocated)
+                ? totalAllocated.toString()
+                : totalAllocated.toFixed(2);
+              return (
+                <>
+                  <span className="text-slate-400 font-medium">
+                    Total shares: <span className="font-bold text-white">{totalSharesDisplay}</span>
+                  </span>
+                  {rem !== 0 ? (
+                    <span className="text-amber-400 font-bold">
+                      Remainder of ${rem.toFixed(2)} goes to first participant
+                    </span>
+                  ) : (
+                    <span className="text-emerald-400 font-bold flex items-center">
+                      <svg className="h-4 w-4 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Balanced
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

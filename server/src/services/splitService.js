@@ -30,6 +30,51 @@ const splitPercent = (totalAmount, splits) => {
   }));
 };
 
+function splitShares(totalAmount, splits) {
+  // splits = [{ userId, shareValue }]
+  // shareValue = number of shares assigned to this user (integer, e.g. 2, 1, 1)
+
+  // Validate: at least one participant
+  if (!splits || splits.length === 0) {
+    throw new Error('At least one participant required for shares split.');
+  }
+
+  // Validate: all shareValues are positive numbers
+  for (const s of splits) {
+    if (!s.shareValue || s.shareValue <= 0) {
+      throw new Error('Share value must be a positive number for user: ' + s.userId);
+    }
+  }
+
+  // Calculate total shares
+  const totalShares = splits.reduce((acc, s) => acc + s.shareValue, 0);
+  if (totalShares <= 0) {
+    throw new Error('Total shares must be greater than 0.');
+  }
+
+  // Calculate owedAmount per participant using floor division
+  let allocated = 0;
+  const result = splits.map(s => {
+    const owedAmount = Math.floor(totalAmount * s.shareValue / totalShares);
+    allocated += owedAmount;
+    return {
+      userId:     s.userId,
+      owedAmount: owedAmount,
+      shareValue: s.shareValue,
+    };
+  });
+
+  // Remainder goes to first participant (payer handles this in controller)
+  // Return result as-is; controller will adjust payer's owedAmount for remainder
+  const remainder = totalAmount - allocated;
+  if (remainder !== 0) {
+    // Add remainder to first entry — controller will re-assign to payer if needed
+    result[0].owedAmount += remainder;
+  }
+
+  return result;
+}
+
 const calculateSplits = (expense) => {
   // Router — mirrors C++ constructor logic:
   // if (type == ExpenseType::EQUAL) → calculateEqualShares()
@@ -38,8 +83,9 @@ const calculateSplits = (expense) => {
     case 'EQUAL':   return splitEqual(expense.totalAmount, expense.participants);
     case 'EXACT':   return splitExact(expense.totalAmount, expense.splits);
     case 'PERCENT': return splitPercent(expense.totalAmount, expense.splits);
+    case 'SHARES':  return splitShares(expense.totalAmount, expense.splits);
     default: throw new Error('Unknown split method: ' + expense.splitMethod);
   }
 };
 
-module.exports = { calculateSplits, splitEqual, splitExact, splitPercent };
+module.exports = { calculateSplits, splitEqual, splitExact, splitPercent, splitShares };

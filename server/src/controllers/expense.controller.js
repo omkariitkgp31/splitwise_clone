@@ -1,7 +1,7 @@
 const prisma = require('../config/db');
 const { calculateSplits, splitEqual } = require('../services/splitService');
 const { invalidateBalanceCache } = require('../services/balanceService');
-const { emitToGroup } = require('../socket/socketHandler');
+const { emitToGroup, emitToExpense } = require('../socket/socketHandler');
 
 const createExpense = async (req, res, next) => {
   try {
@@ -44,7 +44,7 @@ const createExpense = async (req, res, next) => {
     if (participantsList.length === 0) {
       return res.status(400).json({ message: 'Participants array is required and cannot be empty' });
     }
-    if (!['EQUAL', 'EXACT', 'PERCENT'].includes(splitMethod)) {
+    if (!['EQUAL', 'EXACT', 'PERCENT', 'SHARES'].includes(splitMethod)) {
       return res.status(400).json({ message: 'Invalid split method' });
     }
 
@@ -167,6 +167,15 @@ const setExpenseShares = async (req, res, next) => {
       return res.status(400).json({ message: 'Expense is already settled' });
     }
 
+    if (expense.splitMethod === 'SHARES') {
+      // Validate all splits have shareValue field
+      for (const s of splits) {
+        if (s.shareValue === undefined || s.shareValue === null) {
+          return res.status(400).json({ message: 'shareValue required for SHARES split method' });
+        }
+      }
+    }
+
     // Prepare structure to run calculateSplits
     const calculationInput = {
       totalAmount: expense.totalAmount,
@@ -175,6 +184,7 @@ const setExpenseShares = async (req, res, next) => {
         userId: s.userId,
         owedAmount: s.owedAmount !== undefined ? parseFloat(s.owedAmount) : undefined,
         percentage: s.percentage !== undefined ? parseFloat(s.percentage) : undefined,
+        shareValue: s.shareValue !== undefined ? parseFloat(s.shareValue) : undefined,
       })),
       participants: splits.map((s) => s.userId),
     };
@@ -194,6 +204,7 @@ const setExpenseShares = async (req, res, next) => {
           userId: s.userId,
           owedAmount: Math.round(s.owedAmount),
           percentage: s.percentage !== undefined ? s.percentage : null,
+          shareValue: s.shareValue !== undefined ? s.shareValue : null,
         })),
       });
 
@@ -451,6 +462,65 @@ const getExpenseComments = async (req, res, next) => {
   }
 };
 
+const createExpenseComment = async (req, res, next) => {
+  try {
+    const { id: expenseId } = req.params;
+    const { message } = req.body;
+    const userId = req.user.id;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Comment message is required' });
+    }
+
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      select: { groupId: true },
+    });
+
+    if (!expense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+
+    const membership = await prisma.groupMember.findUnique({
+      where: {
+        groupId_userId: {
+          groupId: expense.groupId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ message: 'You must be a member of the group to comment' });
+    }
+
+    const comment = await prisma.expenseComment.create({
+      data: {
+        expenseId,
+        userId,
+        message: message.trim(),
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, imageURI: true },
+        },
+      },
+    });
+
+    // Broadcast new comment to all sockets in the expense room
+    emitToExpense(expenseId, 'new:expense-comment', {
+      id: comment.id,
+      message: comment.message,
+      user: comment.user,
+      timestamp: comment.createdAt,
+    });
+
+    return res.status(201).json({ comment });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   createExpense,
   setExpenseShares,
@@ -459,4 +529,5 @@ module.exports = {
   getExpense,
   deleteExpense,
   getExpenseComments,
+  createExpenseComment,
 };

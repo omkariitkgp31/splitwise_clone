@@ -33,10 +33,12 @@ const socketHandler = (io) => {
 
   io.on('connection', (socket) => {
     const cookieHeader = socket.handshake.headers.cookie;
+    console.log(`[Socket] Connection attempt. ID: ${socket.id}, Cookies present: ${!!cookieHeader}`);
     const cookies = parseCookies(cookieHeader);
     const token = cookies['access_token'];
 
     if (!token) {
+      console.log(`[Socket] Connection rejected: No access token found. ID: ${socket.id}`);
       socket.disconnect(true);
       return;
     }
@@ -45,11 +47,13 @@ const socketHandler = (io) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
     } catch (err) {
+      console.log(`[Socket] Connection rejected: Token verification failed (${err.message}). ID: ${socket.id}`);
       socket.disconnect(true);
       return;
     }
 
     socket.userId = decoded.id;
+    console.log(`[Socket] User ${socket.userId} authenticated and joined user:${socket.userId}. ID: ${socket.id}`);
     socket.join(`user:${socket.userId}`);
 
     // Join Group Room
@@ -80,6 +84,7 @@ const socketHandler = (io) => {
 
     // Join Expense Room
     socket.on('join:expense', ({ expenseId }) => {
+      console.log(`[Socket] User ${socket.userId} joining room expense:${expenseId}`);
       socket.join('expense:' + expenseId);
     });
 
@@ -133,8 +138,12 @@ const socketHandler = (io) => {
 
     // Send Expense Comment
     socket.on('send:expense-comment', async ({ expenseId, message }) => {
+      console.log(`[Socket] Received send:expense-comment from user ${socket.userId} for expense ${expenseId}: "${message}"`);
       try {
-        if (!message || !message.trim()) return;
+        if (!message || !message.trim()) {
+          console.log(`[Socket] Ignored empty message`);
+          return;
+        }
 
         const expense = await prisma.expense.findUnique({
           where: { id: expenseId },
@@ -142,6 +151,7 @@ const socketHandler = (io) => {
         });
 
         if (!expense) {
+          console.log(`[Socket] Expense not found: ${expenseId}`);
           socket.emit('error', { message: 'Expense not found' });
           return;
         }
@@ -156,6 +166,7 @@ const socketHandler = (io) => {
         });
 
         if (!membership) {
+          console.log(`[Socket] User ${socket.userId} is not member of group ${expense.groupId}`);
           socket.emit('error', { message: 'Not a member of this group' });
           return;
         }
@@ -173,6 +184,7 @@ const socketHandler = (io) => {
           },
         });
 
+        console.log(`[Socket] Created comment ${comment.id} in DB. Broadcasting new:expense-comment to room expense:${expenseId}`);
         io.to('expense:' + expenseId).emit('new:expense-comment', {
           id: comment.id,
           message: comment.message,
@@ -186,8 +198,15 @@ const socketHandler = (io) => {
   });
 };
 
+const emitToExpense = (expenseId, event, data) => {
+  if (ioInstance) {
+    ioInstance.to('expense:' + expenseId).emit(event, data);
+  }
+};
+
 module.exports = {
   socketHandler,
   emitToGroup,
   emitToUser,
+  emitToExpense,
 };
