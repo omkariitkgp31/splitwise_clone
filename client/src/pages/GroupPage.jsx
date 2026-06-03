@@ -194,6 +194,12 @@ export default function GroupPage() {
       if (res.data.method === 'direct') {
         setInviteSuccess('User added directly to the group!');
         fetchGroupDetails();
+      } else if (res.data.inviteLink) {
+        setInviteSuccess(
+          <span>
+            Invitation registered. SMTP error occurred, copy link: <a href={res.data.inviteLink} className="underline text-purple-400 font-bold hover:text-purple-300 break-all" target="_blank" rel="noopener noreferrer">{res.data.inviteLink}</a>
+          </span>
+        );
       } else {
         setInviteSuccess('Invitation email sent successfully!');
       }

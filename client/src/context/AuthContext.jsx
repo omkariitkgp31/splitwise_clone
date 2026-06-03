@@ -24,17 +24,30 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setLoading(true);
+
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', {
+        email,
+        password,
+      });
+
+      console.log("LOGIN RESPONSE", response.data);
+
       setUser(response.data.user || response.data);
+
+      console.log(
+        "USER SET",
+        response.data.user || response.data
+      );
+
       return response.data;
     } catch (error) {
+      console.error("AUTH LOGIN ERROR", error);
       throw error;
     } finally {
       setLoading(false);
     }
   };
-
   const logout = async () => {
     setLoading(true);
     try {

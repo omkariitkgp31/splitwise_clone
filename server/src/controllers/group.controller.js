@@ -414,9 +414,19 @@ const inviteByEmail = async (req, res, next) => {
       },
     });
 
-    await sendInviteEmail(email, req.user.name, group.title, token);
-
-    return res.status(201).json({ invited: true, method: 'email' });
+    try {
+      await sendInviteEmail(email, req.user.name, group.title, token);
+      return res.status(201).json({ invited: true, method: 'email' });
+    } catch (emailError) {
+      console.warn('Failed to send invitation email, providing local link fallback:', emailError.message);
+      const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+      return res.status(201).json({
+        invited: true,
+        method: 'email',
+        message: 'Invitation registered, but email sending failed.',
+        inviteLink: `${frontendUrl}/invite/${token}`,
+      });
+    }
   } catch (error) {
     return next(error);
   }

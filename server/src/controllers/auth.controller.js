@@ -26,19 +26,33 @@ const publicUserSelect = {
 };
 
 const signAccessToken = (user) => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is not configured');
+  const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+
+  console.log('\n========== TOKEN CREATION ==========');
+  console.log('LOGIN SECRET:', secret);
+  console.log('USER ID:', user.id);
+  console.log('EMAIL:', user.email);
+
+  if (!secret) {
+    throw new Error('JWT_SECRET or JWT_ACCESS_SECRET is not configured');
   }
 
-  return jwt.sign(
+  const token = jwt.sign(
     {
       id: user.id,
       email: user.email,
       name: user.name,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' },
+    secret,
+    {
+      expiresIn: '15m',
+    }
   );
+
+  console.log('GENERATED TOKEN:', token);
+  console.log('====================================\n');
+
+  return token;
 };
 
 const createRefreshToken = async (userId) => {

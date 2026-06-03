@@ -14,6 +14,13 @@ export default function RegisterPage() {
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
   const navigate = useNavigate();
 
+  const handleGoogleLogin = () => {
+    const apiUrl =
+      import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
+    window.location.href = `${apiUrl}/auth/google`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -139,6 +146,37 @@ export default function RegisterPage() {
             </Link>
           </div>
         </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/5"></div>
+            </div>
+
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="px-2 bg-slate-950 text-slate-400 font-semibold">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center px-4 py-3 border border-white/5 rounded-xl shadow-sm text-sm font-semibold text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
+            >
+              <svg
+                className="h-5 w-5 mr-2"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.513 0-6.386-2.873-6.386-6.386 0-3.513 2.873-6.386 6.386-6.386 1.637 0 3.123.617 4.267 1.62l3.053-3.053C19.343 2.74 16.037 1.5 12.24 1.5c-5.79 0-10.5 4.71-10.5 10.5s4.71 10.5 10.5 10.5c6.14 0 10.222-4.32 10.222-10.42 0-.693-.06-1.3-.18-1.795H12.24z" />
+              </svg>
+
+              Sign up with Google
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -46,7 +46,7 @@ CREATE TABLE `Expense` (
     `title` VARCHAR(191) NOT NULL,
     `totalAmount` INTEGER NOT NULL,
     `paidBy` VARCHAR(191) NOT NULL,
-    `splitMethod` ENUM('EQUAL', 'UNEQUAL', 'PERCENTAGE', 'SHARES') NOT NULL,
+    `splitMethod` ENUM('EQUAL', 'EXACT', 'PERCENT', 'SHARES') NOT NULL,
     `category` VARCHAR(191) NOT NULL,
     `imageURI` VARCHAR(191) NULL,
     `isSettled` BOOLEAN NOT NULL DEFAULT false,

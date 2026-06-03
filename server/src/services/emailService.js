@@ -1,6 +1,9 @@
 const nodemailer = require('nodemailer');
 
 const getTransporter = () => {
+  if (!process.env.SMTP_HOST) {
+    return null;
+  }
   const port = Number(process.env.SMTP_PORT || 587);
 
   return nodemailer.createTransport({
@@ -22,6 +25,9 @@ const sendInviteEmail = async (to, inviterName, groupName, token) => {
   const from = process.env.SMTP_FROM || 'Splitwise Clone <no-reply@example.com>';
 
   const transporter = getTransporter();
+  if (!transporter) {
+    throw new Error('SMTP_HOST is not configured');
+  }
 
   return transporter.sendMail({
     from,

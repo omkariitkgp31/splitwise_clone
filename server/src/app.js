@@ -14,13 +14,38 @@ const app = express();
 app.set('trust proxy', 1);
 const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  frontendUrl,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: frontendUrl,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   }),
 );
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+  const originalJson = res.json;
+  res.json = function (body) {
+    console.log(`[Response] ${req.method} ${req.url} - Status: ${res.statusCode}`);
+    return originalJson.apply(this, arguments);
+  };
+  next();
+});
+
 app.use(express.json());
 app.use(passport.initialize());
 
